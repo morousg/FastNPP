@@ -10,7 +10,7 @@ include (cmake/targets/virtualfolders.cmake)
 include (cmake/deploy/deploy_dependencies.cmake)
 include (cmake/libs/cuda/archs.cmake)
 include (cmake/generators/version_header.cmake)
-project(cvGPUSpeedup VERSION ${PROJECT_VERSION} LANGUAGES CXX CUDA 
+project(FastNPP VERSION ${PROJECT_VERSION} LANGUAGES CXX CUDA 
 DESCRIPTION "A faster implementation of NPP" HOMEPAGE_URL "https://github.com/morousg/FastNPP" )
 include (cmake/libs/fkl.cmake)
 include (cmake/libs/cuda/cuda.cmake)
