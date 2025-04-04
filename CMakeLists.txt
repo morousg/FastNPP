@@ -11,7 +11,7 @@ include (cmake/deploy/deploy_dependencies.cmake)
 include (cmake/libs/cuda/archs.cmake)
 include (cmake/generators/version_header.cmake)
 project(cvGPUSpeedup VERSION ${PROJECT_VERSION} LANGUAGES CXX CUDA 
-DESCRIPTION "Make OpenCV-CUDA code run faster on the GPU" HOMEPAGE_URL "https://github.com/morousg/cvGPUSpeedup" )
+DESCRIPTION "A faster implementation of NPP" HOMEPAGE_URL "https://github.com/morousg/FastNPP" )
 include (cmake/libs/fkl.cmake)
 include (cmake/libs/cuda/cuda.cmake)
 

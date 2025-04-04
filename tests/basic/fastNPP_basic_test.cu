@@ -22,10 +22,8 @@ int launch() {
     constexpr int nMaxWidth = 1024;
     constexpr int nMaxHeight = 1024;
     constexpr int BATCH{ 50 };
-    NppiImageDescriptor* h_pBatchSrc;
-    NppiResizeBatchROI_Advanced* pBatchROI;
-    unsigned int nBatchSize;
-    int eInterpolation;
+    NppiImageDescriptor* h_pBatchSrc{nullptr};
+    NppiResizeBatchROI_Advanced* pBatchROI{nullptr};
     int order[3]{ 2, 0, 1 };
     std::array<Npp32f*, BATCH> outputs[3];
     constexpr NppiSize outputSize{ 1024, 1024 };
@@ -42,7 +40,13 @@ int launch() {
     const auto div = fastNPP::DivC_32f_C3R_Ctx(float3{ 4.f, 0.5f, 3.f });
     const auto write = fastNPP::CopyBatch_32f_C3P3R_Ctx(outputs, 1024*sizeof(float), outputSize);
 
-    fastNPP::executeOperations(streamContext, resize, swap, mul, sub, div, write);
+    using ItCompiles = decltype(fastNPP::executeOperations(std::declval<decltype(streamContext)>(),
+                                        std::declval<decltype(resize)>(),
+                                        std::declval<decltype(swap)>(),
+                                        std::declval<decltype(mul)>(),
+                                        std::declval<decltype(sub)>(),
+                                        std::declval<decltype(div)>(),
+                                        std::declval<decltype(write)>()));
 
     return 0;
 }
