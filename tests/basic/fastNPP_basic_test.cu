@@ -22,17 +22,20 @@ int launch() {
     constexpr int nMaxWidth = 1024;
     constexpr int nMaxHeight = 1024;
     constexpr int BATCH{ 50 };
-    NppiImageDescriptor* h_pBatchSrc{nullptr};
-    NppiResizeBatchROI_Advanced* pBatchROI{nullptr};
+    NppiImageDescriptor* h_pBatchSrc;
+    NppiResizeBatchROI_Advanced* pBatchROI;
     int order[3]{ 2, 0, 1 };
     std::array<Npp32f*, BATCH> outputs[3];
     constexpr NppiSize outputSize{ 1024, 1024 };
     NppStreamContext streamContext;
 
-    const auto resize = fastNPP::ResizeBatch_8u32f_C3R_Advanced_Ctx<NPPI_INTER_LINEAR, BATCH>(nMaxWidth,
-                                                                          nMaxHeight,
-                                                                          h_pBatchSrc,
-                                                                          pBatchROI);
+    using ResizeType = decltype(fastNPP::ResizeBatch_8u32f_C3R_Advanced_Ctx<NPPI_INTER_LINEAR, BATCH>(std::declval<decltype(nMaxWidth)>(),
+                                                                                                      std::declval<decltype(nMaxHeight)>(),
+                                                                                                      std::declval<decltype(h_pBatchSrc)>(),
+                                                                                                      std::declval<decltype(pBatchROI)>()));
+
+    const ResizeType resize{};
+
     const auto swap = fastNPP::SwapChannels_32f_C3R_Ctx(order);
 
     const auto mul = fastNPP::MulC_32f_C3R_Ctx(float3{ 3.f, 4.f, 5.f });
