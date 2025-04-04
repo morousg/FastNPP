@@ -13,7 +13,7 @@
    limitations under the License. */
 
 #ifdef WIN32
-#include <testing/main.h>
+#include <tests/main.h>
 #endif
 
 #include <fast_npp.cuh>
