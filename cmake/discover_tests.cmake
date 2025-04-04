@@ -39,11 +39,9 @@ function (discover_tests DIR)
         set_target_cuda_arch_flags(${cuda_target})
         add_test(NAME  ${cuda_target} COMMAND ${cuda_target})
          
-    	string(FIND ${cuda_source} "npp" is_npp)    	
-		 
-		if (${is_npp} GREATER -1)		    
-			target_link_libraries(${cuda_target} PRIVATE CUDA::nppc CUDA::nppial CUDA::nppidei CUDA::nppig) 								              
-		endif()
-		
+        string(FIND ${cuda_source} "npp" is_npp)    	
+                
+        target_link_libraries(${cuda_target} PRIVATE CUDA::nppc CUDA::nppial CUDA::nppidei CUDA::nppig) 								              
+        
     endforeach()
 endfunction()
