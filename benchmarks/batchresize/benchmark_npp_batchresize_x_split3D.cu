@@ -236,10 +236,9 @@ bool test_npp_batchresize_x_split3D(size_t NUM_ELEMS_X, size_t NUM_ELEMS_Y, cuda
       gpuErrchk(cudaFree(dBatchROI));
       gpuErrchk(cudaFreeHost(hBatchSrc));
       gpuErrchk(cudaFreeHost(hBatchDst));
-      gpuErrchk(cudaFreeHost(hBatchROI))
+      gpuErrchk(cudaFreeHost(hBatchROI));
 
       // compare data
-
       const float TOLERANCE = 1e-3;
       for (int j = 0; j < BATCH; ++j) {
         for (int c = 0; c < 3; ++c) {

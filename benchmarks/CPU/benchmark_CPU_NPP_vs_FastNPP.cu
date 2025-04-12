@@ -203,9 +203,64 @@ bool test_NPP_cpu_batchresize_x_split3D(size_t NUM_ELEMS_X, size_t NUM_ELEMS_Y, 
             }
             processExecution<BATCH, ITERS, batchValues.size(), batchValues>(benchmarkTemp.resF, __func__, benchmarkTemp.NPPelapsedTime, benchmarkTemp.FastNPPelapsedTime, VARIABLE_DIMENSION);
             gpuErrchk(cudaMemcpyAsync(h_tensor.ptr().data, d_tensor.ptr().data, d_tensor.sizeInBytes(), cudaMemcpyDeviceToHost, stream));
+            
+            // Bucle final de copia (NPP)
+            for (int i = 0; i < BATCH; ++i) {
+                const auto d_dims = d_channelA[i].dims();
+                const auto h_dims = h_channelA[i].dims();
+
+                gpuErrchk(cudaMemcpy2DAsync(h_channelA[i].ptr().data, h_dims.pitch, d_channelA[i].ptr().data, d_dims.pitch,
+                    d_dims.width * sizeof(float), d_dims.height, cudaMemcpyDeviceToHost, stream));
+                gpuErrchk(cudaMemcpy2DAsync(h_channelB[i].ptr().data, h_dims.pitch, d_channelB[i].ptr().data, d_dims.pitch,
+                    d_dims.width * sizeof(float), d_dims.height, cudaMemcpyDeviceToHost, stream));
+                gpuErrchk(cudaMemcpy2DAsync(h_channelC[i].ptr().data, h_dims.pitch, d_channelC[i].ptr().data, d_dims.pitch,
+                    d_dims.width * sizeof(float), d_dims.height, cudaMemcpyDeviceToHost, stream));
+            }
+
             gpuErrchk(cudaStreamSynchronize(stream));
 
-            // TODO: Check results
+            // free NPP Data
+            gpuErrchk(cudaFree(dBatchSrc));
+            gpuErrchk(cudaFree(dBatchDst));
+            gpuErrchk(cudaFree(dBatchROI));
+            gpuErrchk(cudaFreeHost(hBatchSrc));
+            gpuErrchk(cudaFreeHost(hBatchDst));
+            gpuErrchk(cudaFreeHost(hBatchROI));
+
+            // compare data
+            constexpr int COLOR_PLANE = UP_H * UP_W;
+            constexpr int IMAGE_STRIDE = (COLOR_PLANE * 3);
+            const float TOLERANCE = 1e-3;
+            for (int j = 0; j < BATCH; ++j) {
+                for (int c = 0; c < 3; ++c) {
+                    for (int i = 0; i < COLOR_PLANE; ++i) {
+                        const int i_tensor = i + (COLOR_PLANE * c);
+                        const float result = h_tensor.ptr().data[(j * IMAGE_STRIDE) + i_tensor];
+                        switch (c) {
+                        case RED: {
+                            float nppResult = h_channelA[j].ptr().data[i];
+                            float diff = std::abs(result - nppResult);
+
+                            passed &= diff < TOLERANCE;
+
+                            break;
+                        }
+                        case GREEN: {
+                            float nppResult = h_channelB[j].ptr().data[i];
+                            float diff = std::abs(result - nppResult);
+                            passed &= diff < TOLERANCE;
+                            break;
+                        }
+                        case BLUE: {
+                            float nppResult = h_channelC[j].ptr().data[i];
+                            float diff = std::abs(result - nppResult);
+                            passed &= diff < TOLERANCE;
+                            break;
+                        }
+                        }
+                    }
+                }
+            }
         } catch (const std::exception& e) {
             error_s << e.what();
             passed = false;
