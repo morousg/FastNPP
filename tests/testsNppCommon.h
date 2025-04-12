@@ -19,6 +19,46 @@
 #include <fstream>
 #include <sstream>
 #include <unordered_map>
+#include <iostream>
+#include <chrono>
+
+#include <npp.h>
+
+enum CHANNEL { RED, GREEN, BLUE };
+
+constexpr inline void nppAssert(NppStatus code, const char* file, int line, bool abort = true) {
+    if (code != NPP_SUCCESS) {
+        std::cout << "NPP failure: "
+            << " File: " << file << " Line:" << line << std::endl;
+        if (abort)
+            throw std::exception();
+    }
+}
+
+#define NPP_CHECK(ans) { nppAssert((ans), __FILE__, __LINE__, true); }
+
+NppStreamContext initNppStreamContext(const cudaStream_t& stream) {
+    int device = 0;
+    int ccmajor = 0;
+    int ccminor = 0;
+    uint flags;
+
+    cudaDeviceProp prop;
+    gpuErrchk(cudaGetDevice(&device)) gpuErrchk(cudaGetDeviceProperties(&prop, device));
+    gpuErrchk(cudaDeviceGetAttribute(&ccmajor, cudaDevAttrComputeCapabilityMinor, device));
+    gpuErrchk(cudaDeviceGetAttribute(&ccminor, cudaDevAttrComputeCapabilityMajor, device));
+    gpuErrchk(cudaStreamGetFlags(stream, &flags));
+    NppStreamContext nppstream = { stream,
+                                  device,
+                                  prop.multiProcessorCount,
+                                  prop.maxThreadsPerMultiProcessor,
+                                  prop.maxThreadsPerBlock,
+                                  prop.sharedMemPerBlock,
+                                  ccmajor,
+                                  ccminor,
+                                  flags };
+    return nppstream;
+}
 
 template <size_t START_VALUE, size_t INCREMENT, std::size_t... Is>
 constexpr std::array<size_t, sizeof...(Is)> generate_sequence(std::index_sequence<Is...>) {
@@ -28,4 +68,6 @@ constexpr std::array<size_t, sizeof...(Is)> generate_sequence(std::index_sequenc
 template <size_t START_VALUE, size_t INCREMENT, size_t NUM_ELEMS>
 constexpr std::array<size_t, NUM_ELEMS> arrayIndexSecuence =
     generate_sequence<START_VALUE, INCREMENT>(std::make_index_sequence<NUM_ELEMS>{});
- 
+
+
+

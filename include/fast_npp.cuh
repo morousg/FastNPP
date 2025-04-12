@@ -54,11 +54,23 @@ namespace fastNPP {
     constexpr inline auto MulC_32f_C3R_Ctx(const float3& value) {
         return fk::Mul<float3>::build(value);
     }
+
+    constexpr inline auto MulC_32f_C3R_Ctx(const float (&value)[3]) {
+        return fk::Mul<float3>::build(fk::make_<float3>(value[0], value[1], value[2]));
+    }
+
     constexpr inline auto SubC_32f_C3R_Ctx(const float3& value) {
         return fk::Sub<float3>::build(value);
     }
+
+    constexpr inline auto SubC_32f_C3R_Ctx(const float(&value)[3]) {
+        return fk::Sub<float3>::build(fk::make_<float3>(value[0], value[1], value[2]));
+    }
     constexpr inline auto DivC_32f_C3R_Ctx(const float3& value) {
         return fk::Div<float3>::build(value);
+    }
+    constexpr inline auto DivC_32f_C3R_Ctx(const float(&value)[3]) {
+        return fk::Div<float3>::build(fk::make_<float3>(value[0], value[1], value[2]));
     }
     template <int BATCH>
     constexpr inline auto CopyBatch_32f_C3P3R_Ctx(const std::array<Npp32f*, BATCH>  (&aDst)[3],

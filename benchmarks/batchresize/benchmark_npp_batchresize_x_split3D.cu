@@ -15,7 +15,6 @@
 
 #include <tests/main.h>
 
-#include <npp.h>
 #include <nppi_geometry_transforms.h>
 
 #include <fused_kernel/core/data/size.h>
@@ -39,41 +38,6 @@ constexpr size_t NUM_EXPERIMENTS = 9;
 constexpr size_t FIRST_VALUE = 10;
 constexpr size_t INCREMENT = 10;
 constexpr std::array<size_t, NUM_EXPERIMENTS> batchValues = arrayIndexSecuence<FIRST_VALUE, INCREMENT, NUM_EXPERIMENTS>;
-enum CHANNEL { RED, GREEN, BLUE };
-constexpr inline void nppAssert(NppStatus code, const char *file, int line, bool abort = true) {
-  if (code != NPP_SUCCESS) {
-    std::cout << "NPP failure: "
-              << " File: " << file << " Line:" << line << std::endl;
-    if (abort)
-      throw std::exception();
-  }
-}
-
-#define NPP_CHECK(ans) { nppAssert((ans), __FILE__, __LINE__, true); }
-
-NppStreamContext initNppStreamContext(const cudaStream_t &stream);
-NppStreamContext initNppStreamContext(const cudaStream_t &stream) {
-  int device = 0;
-  int ccmajor = 0;
-  int ccminor = 0;
-  uint flags;
-
-  cudaDeviceProp prop;
-  gpuErrchk(cudaGetDevice(&device)) gpuErrchk(cudaGetDeviceProperties(&prop, device));
-  gpuErrchk(cudaDeviceGetAttribute(&ccmajor, cudaDevAttrComputeCapabilityMinor, device));
-  gpuErrchk(cudaDeviceGetAttribute(&ccminor, cudaDevAttrComputeCapabilityMajor, device));
-  gpuErrchk(cudaStreamGetFlags(stream, &flags));
-  NppStreamContext nppstream = {stream,
-                                device,
-                                prop.multiProcessorCount,
-                                prop.maxThreadsPerMultiProcessor,
-                                prop.maxThreadsPerBlock,
-                                prop.sharedMemPerBlock,
-                                ccmajor,
-                                ccminor,
-                                flags};
-  return nppstream;
-}
 
 template <int BATCH>
 bool test_npp_batchresize_x_split3D(size_t NUM_ELEMS_X, size_t NUM_ELEMS_Y, cudaStream_t &compute_stream,
@@ -206,16 +170,8 @@ bool test_npp_batchresize_x_split3D(size_t NUM_ELEMS_X, size_t NUM_ELEMS_Y, cuda
                                             hBatchSrcFP32[i].nStep, hBatchSrcFP32[i].oSize, nppcontext));
       }
 
-      // print2D("Values after conversion to fp32", d_input_f, compute_stream);
-
       NPP_CHECK(nppiResizeBatch_32f_C3R_Advanced_Ctx(UP_W, UP_H, dBatchSrcFP32, dBatchDst, dBatchROI, BATCH,
                                                      NPPI_INTER_LINEAR, nppcontext));
-
-      /*for (int i = 0; i < BATCH; ++i) {
-        std::stringstream ss;
-        ss << "Resized plane " << i;
-        print2D(ss.str(), d_resized_npp[i], compute_stream);
-      }*/
 
       for (int i = 0; i < BATCH; ++i) {
         // std::cout << "Processing BATCH " << i << std::endl;
@@ -223,25 +179,17 @@ bool test_npp_batchresize_x_split3D(size_t NUM_ELEMS_X, size_t NUM_ELEMS_Y, cuda
             reinterpret_cast<Npp32f *>(d_resized_npp[i].ptr().data), d_resized_npp[i].ptr().dims.pitch,
             reinterpret_cast<Npp32f *>(d_swap[i].ptr().data), d_swap[i].dims().pitch, up_size, aDstOrder, nppcontext));
 
-        // print2D("Values after swap", d_swap[i], compute_stream);
-
         NPP_CHECK(nppiMulC_32f_C3R_Ctx(reinterpret_cast<Npp32f *>(d_swap[i].ptr().data), d_swap[i].ptr().dims.pitch,
                                        mulValue, reinterpret_cast<Npp32f *>(d_mul[i].ptr().data),
                                        d_mul[i].ptr().dims.pitch, up_size, nppcontext));
-
-        // print2D("Values after mul", d_mul[i], compute_stream);
 
         NPP_CHECK(nppiSubC_32f_C3R_Ctx(reinterpret_cast<Npp32f *>(d_mul[i].ptr().data), d_mul[i].ptr().dims.pitch,
                                        subValue, reinterpret_cast<Npp32f *>(d_sub[i].ptr().data),
                                        d_sub[i].ptr().dims.pitch, up_size, nppcontext));
 
-        // print2D("Values after sub", d_sub[i], compute_stream);
-
         NPP_CHECK(nppiDivC_32f_C3R_Ctx(reinterpret_cast<Npp32f *>(d_sub[i].ptr().data), d_sub[i].ptr().dims.pitch,
                                        divValue, reinterpret_cast<Npp32f *>(d_div[i].ptr().data),
                                        d_div[i].ptr().dims.pitch, up_size, nppcontext));
-
-        // print2D("Values after div", d_div[i], compute_stream);
 
         Npp32f *const aDst_arr[3] = {reinterpret_cast<Npp32f *>(d_channelA[i].ptr().data),
                                      reinterpret_cast<Npp32f *>(d_channelB[i].ptr().data),
@@ -249,10 +197,6 @@ bool test_npp_batchresize_x_split3D(size_t NUM_ELEMS_X, size_t NUM_ELEMS_Y, cuda
 
         NPP_CHECK(nppiCopy_32f_C3P3R_Ctx(reinterpret_cast<Npp32f *>(d_div[i].ptr().data), d_div[i].ptr().dims.pitch,
                                          aDst_arr, d_channelA[i].ptr().dims.pitch, up_size, nppcontext));
-
-        /* print2D("Split X", d_channelA[i], compute_stream);
-        print2D("Split Y", d_channelB[i], compute_stream);
-        print2D("Split Z", d_channelC[i], compute_stream);*/
       }
 
       STOP_NPP_START_FK_BENCHMARK
@@ -292,10 +236,9 @@ bool test_npp_batchresize_x_split3D(size_t NUM_ELEMS_X, size_t NUM_ELEMS_Y, cuda
       gpuErrchk(cudaFree(dBatchROI));
       gpuErrchk(cudaFreeHost(hBatchSrc));
       gpuErrchk(cudaFreeHost(hBatchDst));
-      gpuErrchk(cudaFreeHost(hBatchROI))
+      gpuErrchk(cudaFreeHost(hBatchROI));
 
-          // compare data
-
+      // compare data
       const float TOLERANCE = 1e-3;
       for (int j = 0; j < BATCH; ++j) {
         for (int c = 0; c < 3; ++c) {
