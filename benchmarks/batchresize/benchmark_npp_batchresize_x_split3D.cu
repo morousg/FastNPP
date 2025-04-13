@@ -203,7 +203,7 @@ bool test_npp_batchresize_x_split3D(size_t NUM_ELEMS_X, size_t NUM_ELEMS_Y, cuda
       // do the same via fk
       const auto sizeArray = fk::make_set_std_array<BATCH>(fk::Size(UP_W, UP_H));
       const auto readInstantiableArray = fk::PerThreadRead<fk::_2D, uchar3>::build_batch(d_crop_fk);
-      const auto readOp = fk::ResizeRead<fk::INTER_LINEAR>::build(readInstantiableArray, sizeArray);
+      const auto readOp = fk::Resize<fk::INTER_LINEAR>::build(readInstantiableArray, sizeArray);
       const auto split = fk::Write<fk::TensorSplit<float3>>{d_tensor.ptr()};
 
       fk::executeOperations<false>(compute_stream, readOp, colorConvert, multiply, sub, div, split);

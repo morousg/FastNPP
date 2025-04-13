@@ -145,7 +145,7 @@ processExecution<BATCH, ITERS, batchValues.size(), batchValues>(                
 template <int ITERS>
 struct BenchmarkTemp {
     BenchmarkResultsNumbers resF;
-    std::chrono::steady_clock::time_point startTime;
+    std::chrono::system_clock::time_point startTime;
     std::array<float, ITERS> NPPelapsedTime;
     std::array<float, ITERS> FastNPPelapsedTime;
 };

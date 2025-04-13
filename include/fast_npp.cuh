@@ -43,12 +43,13 @@ namespace fastNPP {
                                                                       fk::Device, currentDevice);
         }
         const fk::Size dstSize(nMaxWidth, nMaxHeight);
-        return fk::PerThreadRead<fk::_2D, uchar3>::build(srcBatch).
-               then(fk::ResizeRead<fk::INTER_LINEAR>::build(dstSize));
+        return fk::PerThreadRead<fk::_2D, uchar3>::build(srcBatch)
+               .then(fk::Resize<fk::INTER_LINEAR>::build(dstSize));
     }
 
     constexpr inline auto SwapChannels_32f_C3R_Ctx(const int(&dstOrder)[3]) {
-        return fk::VectorReorderRT<float3>::build(dstOrder);
+        const int3 dstOrderArray{dstOrder[0], dstOrder[1], dstOrder[2]};
+        return fk::VectorReorderRT<float3>::build(dstOrderArray);
     }
 
     constexpr inline auto MulC_32f_C3R_Ctx(const float3& value) {
@@ -72,7 +73,7 @@ namespace fastNPP {
     constexpr inline auto DivC_32f_C3R_Ctx(const float(&value)[3]) {
         return fk::Div<float3>::build(fk::make_<float3>(value[0], value[1], value[2]));
     }
-    template <int BATCH>
+    template <size_t BATCH>
     constexpr inline auto CopyBatch_32f_C3P3R_Ctx(const std::array<Npp32f*, BATCH>  (&aDst)[3],
                                                   const int& nDstStep, const NppiSize& oSizeROI) {
         std::array<fk::SplitWriteParams<fk::_2D, float3>, BATCH> params;
