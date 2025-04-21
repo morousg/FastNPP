@@ -131,7 +131,8 @@ inline void processExecution(const BenchmarkResultsNumbers &resF, const std::str
   gpuErrchk(cudaEventElapsedTime(&FKelapsedTime[idx], start, stop));                                                     \
   resF.FKelapsedTimeMax = resF.FKelapsedTimeMax < FKelapsedTime[idx] ? FKelapsedTime[idx] : resF.FKelapsedTimeMax;         \
   resF.FKelapsedTimeMin = resF.FKelapsedTimeMin > FKelapsedTime[idx] ? FKelapsedTime[idx] : resF.FKelapsedTimeMin;         \
-  resF.FKelapsedTimeAcum += FKelapsedTime[idx];                                                                          \
+  resF.FKelapsedTimeAcum += FKelapsedTime[idx];                                                                       \
+  if (warmup) break; \
   }                                                                                                                  \
 processExecution<BATCH, ITERS, batchValues.size(), batchValues>(                               \
       resF, __func__, NPPelapsedTime, FKelapsedTime ,VARIABLE_DIMENSION);

@@ -32,9 +32,10 @@
  
 #include <tests/testsNppCommon.h>
 #include <benchmarks/nppbenchmark.h>
+#include <include/fast_npp.cuh>
 
 constexpr char VARIABLE_DIMENSION[]{"Batch size"};
-constexpr size_t NUM_EXPERIMENTS = 9;
+constexpr size_t NUM_EXPERIMENTS = 15;
 constexpr size_t FIRST_VALUE = 10;
 constexpr size_t INCREMENT = 10;
 constexpr std::array<size_t, NUM_EXPERIMENTS> batchValues = arrayIndexSecuence<FIRST_VALUE, INCREMENT, NUM_EXPERIMENTS>;
@@ -80,6 +81,18 @@ bool test_npp_batchresize_x_split3D(size_t NUM_ELEMS_X, size_t NUM_ELEMS_Y, cuda
 
       fk::Tensor<float> h_tensor(UP_W, UP_H, BATCH, 3, fk::MemType::HostPinned);
       fk::Tensor<float> d_tensor(UP_W, UP_H, BATCH, 3);
+      std::array<Npp32f*, BATCH> d_dst_output[3];
+      for (int planeId = 0; planeId < 3; ++planeId) {
+          for (int batchId = 0; batchId < BATCH; ++batchId) {
+              uint plane_padding = d_tensor.ptr().dims.plane_pitch * planeId;
+              d_dst_output[planeId][batchId] =
+                  reinterpret_cast<Npp32f*>(
+                    reinterpret_cast<uchar*>(
+                      fk::PtrAccessor<fk::_3D>::point(fk::Point(0,0,batchId), d_tensor.ptr())
+                    ) + plane_padding
+                  );
+          }
+      }
       // crop array of images using batch resize+ ROIs
       // force fill 5
       constexpr int COLOR_PLANE = UP_H * UP_W;
@@ -132,7 +145,7 @@ bool test_npp_batchresize_x_split3D(size_t NUM_ELEMS_X, size_t NUM_ELEMS_Y, cuda
         h_channelB[i] = fk::Ptr2D<float>(UP_W, UP_H, 0, fk::MemType::HostPinned);
         h_channelC[i] = fk::Ptr2D<float>(UP_W, UP_H, 0, fk::MemType::HostPinned);
 
-        std::array<Npp32f *, 3> ptrs = {reinterpret_cast<Npp32f *>(d_channelA[i].ptr().data),
+        std::array<Npp32f*, 3> ptrs = {reinterpret_cast<Npp32f *>(d_channelA[i].ptr().data),
                                         reinterpret_cast<Npp32f *>(d_channelB[i].ptr().data),
                                         reinterpret_cast<Npp32f *>(d_channelC[i].ptr().data)};
         aDst.push_back(ptrs);
@@ -152,13 +165,6 @@ bool test_npp_batchresize_x_split3D(size_t NUM_ELEMS_X, size_t NUM_ELEMS_Y, cuda
         d_crop_fk[i] = d_input.crop2D(fk::Point(i, i), fk::PtrDims<fk::_2D>(CROP_W, CROP_H));
       }
 
-      // This operation parameters won't change, so we can generate them once instead of
-      // generating them on evey iteration
-      auto colorConvert = fk::Unary<fk::VectorReorder<float3, BLUE, GREEN, RED>>{};
-      auto multiply = fk::Binary<fk::Mul<float3>>{fk::make_<float3>(mulValue[0], mulValue[1], mulValue[2])};
-      auto sub = fk::Binary<fk::Sub<float3>>{fk::make_<float3>(subValue[0], subValue[1], subValue[2])};
-      auto div = fk::Binary<fk::Div<float3>>{fk::make_<float3>(divValue[0], divValue[1], divValue[2])};
-
       START_NPP_BENCHMARK
 
       // NPP version
@@ -174,7 +180,6 @@ bool test_npp_batchresize_x_split3D(size_t NUM_ELEMS_X, size_t NUM_ELEMS_Y, cuda
                                                      NPPI_INTER_LINEAR, nppcontext));
 
       for (int i = 0; i < BATCH; ++i) {
-        // std::cout << "Processing BATCH " << i << std::endl;
         NPP_CHECK(nppiSwapChannels_32f_C3R_Ctx(
             reinterpret_cast<Npp32f *>(d_resized_npp[i].ptr().data), d_resized_npp[i].ptr().dims.pitch,
             reinterpret_cast<Npp32f *>(d_swap[i].ptr().data), d_swap[i].dims().pitch, up_size, aDstOrder, nppcontext));
@@ -200,13 +205,16 @@ bool test_npp_batchresize_x_split3D(size_t NUM_ELEMS_X, size_t NUM_ELEMS_Y, cuda
       }
 
       STOP_NPP_START_FK_BENCHMARK
-      // do the same via fk
-      const auto sizeArray = fk::make_set_std_array<BATCH>(fk::Size(UP_W, UP_H));
-      const auto readInstantiableArray = fk::PerThreadRead<fk::_2D, uchar3>::build_batch(d_crop_fk);
-      const auto readOp = fk::Resize<fk::INTER_LINEAR>::build(readInstantiableArray, sizeArray);
-      const auto split = fk::Write<fk::TensorSplit<float3>>{d_tensor.ptr()};
-
-      fk::executeOperations<false>(compute_stream, readOp, colorConvert, multiply, sub, div, split);
+      // do the same via fastNPP
+      const auto resizeIOp = 
+        fastNPP::ResizeBatch_8u32f_C3R_Advanced_Ctx<NPPI_INTER_LINEAR, BATCH>(UP_W, UP_H, hBatchSrc, hBatchROI);
+                
+      fastNPP::executeOperations(nppcontext, resizeIOp,
+                                 fastNPP::SwapChannels_32f_C3R_Ctx(aDstOrder),
+                                 fastNPP::MulC_32f_C3R_Ctx(mulValue),
+                                 fastNPP::SubC_32f_C3R_Ctx(subValue),
+                                 fastNPP::DivC_32f_C3R_Ctx(divValue),
+                                 fastNPP::CopyBatch_32f_C3P3R_Ctx(d_dst_output, UP_W * sizeof(float), up_size));
       STOP_FK_BENCHMARK
       // copy tensor
       gpuErrchk(cudaMemcpyAsync(h_tensor.ptr().data, d_tensor.ptr().data, h_tensor.sizeInBytes(),
@@ -377,6 +385,11 @@ int launch() {
   std::unordered_map<std::string, bool> results;
   results["test_npp_batchresize_x_split3D"] = true;
   std::make_index_sequence<batchValues.size()> iSeq{};
+
+  // Warmup
+  warmup = true;
+  launch_test_npp_batchresize_x_split3D(NUM_ELEMS_X, NUM_ELEMS_Y, iSeq, stream, true);
+  warmup = false;
 
   results["test_npp_batchresize_x_split3D"] &=
       launch_test_npp_batchresize_x_split3D(NUM_ELEMS_X, NUM_ELEMS_Y, iSeq, stream, true);
