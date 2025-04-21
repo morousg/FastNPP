@@ -146,7 +146,7 @@ processExecution<BATCH, ITERS, batchValues.size(), batchValues>(                
 template <int ITERS>
 struct BenchmarkTemp {
     BenchmarkResultsNumbers resF;
-    std::chrono::system_clock::time_point startTime;
+    std::chrono::steady_clock::time_point startTime;
     std::array<float, ITERS> NPPelapsedTime;
     std::array<float, ITERS> FastNPPelapsedTime;
 };
@@ -169,24 +169,24 @@ BenchmarkTemp<ITERS> initCPUBenchmark(const std::string & functionName, const st
 
 template <int ITERS>
 void startNPP_CPU(BenchmarkTemp<ITERS>&benchmarkTemp) {
-    benchmarkTemp.startTime = std::chrono::high_resolution_clock::now();
+    benchmarkTemp.startTime = std::chrono::steady_clock::now();
 }
 
 template <int ITERS>
 void stopNPP_startFastNPP_CPU(BenchmarkTemp<ITERS>&benchmarkTemp, const int& i) {
-    const auto endTime = std::chrono::high_resolution_clock::now();
+    const auto endTime = std::chrono::steady_clock::now();
     const std::chrono::duration<float, std::milli> elapsedTime = endTime - benchmarkTemp.startTime;
     benchmarkTemp.NPPelapsedTime[i] = elapsedTime.count();
     benchmarkTemp.resF.NPPelapsedTimeMax = benchmarkTemp.resF.NPPelapsedTimeMax < benchmarkTemp.NPPelapsedTime[i] ? benchmarkTemp.NPPelapsedTime[i] : benchmarkTemp.resF.NPPelapsedTimeMax;
     benchmarkTemp.resF.NPPelapsedTimeMin = benchmarkTemp.resF.NPPelapsedTimeMin > benchmarkTemp.NPPelapsedTime[i] ? benchmarkTemp.NPPelapsedTime[i] : benchmarkTemp.resF.NPPelapsedTimeMin;
     benchmarkTemp.resF.NPPelapsedTimeAcum += benchmarkTemp.NPPelapsedTime[i];
 
-    benchmarkTemp.startTime = std::chrono::high_resolution_clock::now();
+    benchmarkTemp.startTime = std::chrono::steady_clock::now();
 }
 
 template <int ITERS>
 void stopFastNPP_CPU(BenchmarkTemp<ITERS>&benchmarkTemp, const int& i) {
-    const auto endTime = std::chrono::high_resolution_clock::now();
+    const auto endTime = std::chrono::steady_clock::now();
     const std::chrono::duration<float, std::milli> elapsedTime = endTime - benchmarkTemp.startTime;
     benchmarkTemp.FastNPPelapsedTime[i] = elapsedTime.count();
     benchmarkTemp.resF.FKelapsedTimeMax = benchmarkTemp.resF.FKelapsedTimeMax < benchmarkTemp.FastNPPelapsedTime[i] ? benchmarkTemp.FastNPPelapsedTime[i] : benchmarkTemp.resF.FKelapsedTimeMax;
