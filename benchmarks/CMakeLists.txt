@@ -23,7 +23,7 @@ function (enable_intellisense TARGET_NAME)
     set_target_properties(${TARGET_NAME} PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS NO)
   
     target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
-
+    add_optimization_flags(${TARGET_NAME})
 endfunction()
 
 function (discover_tests DIR)

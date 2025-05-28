@@ -37,6 +37,7 @@ function (discover_tests DIR)
         target_include_directories(${cuda_target} PRIVATE "${CMAKE_SOURCE_DIR}/include")          
         #target_link_libraries(${cuda_target} PRIVATE ${PROJECT_NAME})        
         set_target_cuda_arch_flags(${cuda_target})
+        add_optimization_flags(${cuda_target})
         add_test(NAME  ${cuda_target} COMMAND ${cuda_target})
          
         string(FIND ${cuda_source} "npp" is_npp)    	
